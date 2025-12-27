@@ -1,0 +1,276 @@
+CourseTrack - Gestión de cursos e inscripciones
+Aplicación de consola en Python
+=====================================================
+"""
+
+# ------------------ IMPORTACIONES ------------------
+
+import csv                  # Para trabajar con archivos CSV
+import json                 # Para leer configuración en JSON
+import sys                  # Para cerrar el programa
+from datetime import datetime  # Para manejar fechas
+
+# ------------------ ARCHIVOS ------------------
+
+USUARIOS_FILE = "usuarios.csv"
+CURSOS_FILE = "cursos.csv"
+INSCRIPCIONES_FILE = "inscripciones.csv"
+CONFIG_FILE = "config.json"
+
+# ------------------ FUNCIONES UTILITARIAS ------------------
+
+def leer_csv(archivo):
+    """
+    Lee un archivo CSV y devuelve una lista de diccionarios.
+    Cada fila del CSV se convierte en un diccionario.
+    """
+    with open(archivo, newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def escribir_csv(archivo, campos, datos):
+    """
+    Sobrescribe un archivo CSV con los datos recibidos.
+    """
+    with open(archivo, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=campos)
+        writer.writeheader()
+        writer.writerows(datos)
+
+
+def cargar_configuracion():
+    """
+    Carga el archivo config.json.
+    Devuelve el máximo de inscripciones activas permitidas.
+    """
+    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+        config = json.load(f)
+    return config["max_inscripciones_activas"]
+
+# ------------------ AUTENTICACIÓN ------------------
+
+def login():
+    """
+    Controla el inicio de sesión del administrador.
+    Máximo 3 intentos. Si falla, se cierra el programa.
+    """
+    usuarios = leer_csv(USUARIOS_FILE)
+    intentos = 0
+
+    while intentos < 3:
+        usuario = input("Usuario: ")
+        contrasena = input("Contraseña: ")
+
+        # Se recorren los usuarios del CSV
+        for u in usuarios:
+            if u["usuario"] == usuario and u["contrasena"] == contrasena:
+                print("✅ Acceso concedido\n")
+                return True
+
+        # Si no coincide
+        intentos += 1
+        print(f"❌ Credenciales incorrectas ({intentos}/3)")
+
+    print("🚫 Demasiados intentos. Programa finalizado.")
+    sys.exit()
+
+# ------------------ GESTIÓN DE CURSOS ------------------
+
+def registrar_curso():
+    """
+    Registra un nuevo curso en cursos.csv
+    """
+    cursos = leer_csv(CURSOS_FILE)
+    curso_id = len(cursos) + 1  # ID automático
+
+    curso = {
+        "curso_id": curso_id,
+        "nombre": input("Nombre del curso: "),
+        "descripcion": input("Descripción del curso: "),
+        "cupo_maximo": int(input("Cupo máximo: ")),
+        "cupo_actual": 0,
+        "estado": "ABIERTO",
+        "fecha_registro": datetime.now().strftime("%Y-%m-%d")
+    }
+
+    cursos.append(curso)
+    escribir_csv(CURSOS_FILE, curso.keys(), cursos)
+    print("✅ Curso registrado correctamente")
+
+
+def listar_cursos():
+    """
+    Muestra todos los cursos registrados.
+    """
+    cursos = leer_csv(CURSOS_FILE)
+    for c in cursos:
+        print(c)
+
+# ------------------ INSCRIPCIONES ------------------
+
+def registrar_inscripcion():
+    """
+    Registra una inscripción validando:
+    - Máximo de inscripciones activas por persona
+    - Cupo disponible del curso
+    """
+    cursos = leer_csv(CURSOS_FILE)
+    inscripciones = leer_csv(INSCRIPCIONES_FILE)
+    max_inscripciones = cargar_configuracion()
+
+    participante = input("Nombre del participante: ")
+
+    # Se cuentan las inscripciones activas del participante
+    activas = [
+        i for i in inscripciones
+        if i["participante"] == participante and i["estado"] == "ACTIVA"
+    ]
+
+    if len(activas) >= max_inscripciones:
+        print("❌ El participante ya alcanzó el máximo de inscripciones activas")
+        return
+
+    curso_id = input("ID del curso: ")
+    curso = next((c for c in cursos if str(c["curso_id"]) == curso_id), None)
+
+    if not curso:
+        print("❌ Curso no encontrado")
+        return
+
+    if curso["estado"] == "CERRADO":
+        print("❌ El curso está cerrado")
+        return
+
+    # Se actualiza el cupo
+    curso["cupo_actual"] = int(curso["cupo_actual"]) + 1
+    if curso["cupo_actual"] >= int(curso["cupo_maximo"]):
+        curso["estado"] = "CERRADO"
+
+    fecha = datetime.now()
+
+    inscripcion = {
+        "inscripcion_id": len(inscripciones) + 1,
+        "curso_id": curso_id,
+        "nombre_curso": curso["nombre"],
+        "participante": participante,
+        "fecha_inscripcion": fecha.strftime("%Y-%m-%d"),
+        "estado": "ACTIVA",
+        "mes": fecha.month,
+        "anio": fecha.year
+    }
+
+    inscripciones.append(inscripcion)
+
+    escribir_csv(CURSOS_FILE, cursos[0].keys(), cursos)
+    escribir_csv(INSCRIPCIONES_FILE, inscripcion.keys(), inscripciones)
+
+    print("✅ Inscripción registrada correctamente")
+
+
+def cancelar_inscripcion():
+    """
+    Cancela una inscripción existente.
+    """
+    inscripciones = leer_csv(INSCRIPCIONES_FILE)
+
+    for i in inscripciones:
+        print(i)
+
+    insc_id = input("ID de la inscripción a cancelar: ")
+
+    for i in inscripciones:
+        if str(i["inscripcion_id"]) == insc_id:
+            i["estado"] = "CANCELADA"
+
+    escribir_csv(INSCRIPCIONES_FILE, inscripciones[0].keys(), inscripciones)
+    print("✅ Inscripción cancelada")
+
+# ------------------ HISTORIAL ------------------
+
+def consultar_historial():
+    """
+    Permite consultar historial por curso o por participante.
+    """
+    inscripciones = leer_csv(INSCRIPCIONES_FILE)
+
+    opcion = input("Consultar por (1) Curso o (2) Participante: ")
+
+    if opcion == "1":
+        curso = input("Nombre del curso: ")
+        for i in inscripciones:
+            if i["nombre_curso"] == curso:
+                print(i)
+
+    elif opcion == "2":
+        participante = input("Nombre del participante: ")
+        for i in inscripciones:
+            if i["participante"] == participante:
+                print(i)
+
+# ------------------ REPORTES ------------------
+
+def exportar_reporte():
+    """
+    Exporta un reporte CSV por mes y año.
+    """
+    mes = input("Mes: ")
+    anio = input("Año: ")
+
+    inscripciones = leer_csv(INSCRIPCIONES_FILE)
+    filtradas = [
+        i for i in inscripciones
+        if str(i["mes"]) == mes and str(i["anio"]) == anio
+    ]
+
+    if not filtradas:
+        print("❌ No hay datos para ese período")
+        return
+
+    nombre_archivo = f"reporte_{anio}_{mes}.csv"
+    escribir_csv(nombre_archivo, filtradas[0].keys(), filtradas)
+
+    print(f"📁 Reporte generado: {nombre_archivo}")
+
+# ------------------ MENÚ PRINCIPAL ------------------
+
+def menu():
+    """
+    Muestra el menú principal del sistema.
+    """
+    while True:
+        print("""
+===== CourseTrack =====
+1. Registrar curso
+2. Listar cursos
+3. Registrar inscripción
+4. Cancelar inscripción
+5. Consultar historial
+6. Exportar reporte
+0. Salir
+""")
+
+        opcion = input("Seleccione una opción: ")
+
+        if opcion == "1":
+            registrar_curso()
+        elif opcion == "2":
+            listar_cursos()
+        elif opcion == "3":
+            registrar_inscripcion()
+        elif opcion == "4":
+            cancelar_inscripcion()
+        elif opcion == "5":
+            consultar_historial()
+        elif opcion == "6":
+            exportar_reporte()
+        elif opcion == "0":
+            print("👋 Saliendo del sistema")
+            break
+        else:
+            print("❌ Opción inválida")
+
+# ------------------ PROGRAMA PRINCIPAL ------------------
+
+if __name__ == "__main__":
+    login()
+    menu()
