@@ -1,9 +1,4 @@
-CourseTrack - Gestión de cursos e inscripciones
-Aplicación de consola en Python
-=====================================================
-"""
 
-# ------------------ IMPORTACIONES ------------------
 
 import csv                  # Para trabajar con archivos CSV
 import json                 # Para leer configuración en JSON
@@ -183,9 +178,7 @@ def cancelar_inscripcion():
             i["estado"] = "CANCELADA"
 
     escribir_csv(INSCRIPCIONES_FILE, inscripciones[0].keys(), inscripciones)
-    print("✅ Inscripción cancelada")
-
-# ------------------ HISTORIAL ------------------
+    print("✅ Inscripción cancelada"
 
 def consultar_historial():
     """
@@ -204,73 +197,4 @@ def consultar_historial():
     elif opcion == "2":
         participante = input("Nombre del participante: ")
         for i in inscripciones:
-            if i["participante"] == participante:
-                print(i)
-
-# ------------------ REPORTES ------------------
-
-def exportar_reporte():
-    """
-    Exporta un reporte CSV por mes y año.
-    """
-    mes = input("Mes: ")
-    anio = input("Año: ")
-
-    inscripciones = leer_csv(INSCRIPCIONES_FILE)
-    filtradas = [
-        i for i in inscripciones
-        if str(i["mes"]) == mes and str(i["anio"]) == anio
-    ]
-
-    if not filtradas:
-        print("❌ No hay datos para ese período")
-        return
-
-    nombre_archivo = f"reporte_{anio}_{mes}.csv"
-    escribir_csv(nombre_archivo, filtradas[0].keys(), filtradas)
-
-    print(f"📁 Reporte generado: {nombre_archivo}")
-
-# ------------------ MENÚ PRINCIPAL ------------------
-
-def menu():
-    """
-    Muestra el menú principal del sistema.
-    """
-    while True:
-        print("""
-===== CourseTrack =====
-1. Registrar curso
-2. Listar cursos
-3. Registrar inscripción
-4. Cancelar inscripción
-5. Consultar historial
-6. Exportar reporte
-0. Salir
-""")
-
-        opcion = input("Seleccione una opción: ")
-
-        if opcion == "1":
-            registrar_curso()
-        elif opcion == "2":
-            listar_cursos()
-        elif opcion == "3":
-            registrar_inscripcion()
-        elif opcion == "4":
-            cancelar_inscripcion()
-        elif opcion == "5":
-            consultar_historial()
-        elif opcion == "6":
-            exportar_reporte()
-        elif opcion == "0":
-            print("👋 Saliendo del sistema")
-            break
-        else:
-            print("❌ Opción inválida")
-
-# ------------------ PROGRAMA PRINCIPAL ------------------
-
-if __name__ == "__main__":
-    login()
-    menu()
+            if i["participante"] == 
